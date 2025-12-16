@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memory Card Game - 2 Player</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f4f8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      color: #333;
+    }
+    .turn-info {
+      margin-top: 10px;
+      font-size: 1.1rem;
+      color: #2563eb;
+    }
+    .scores {
+      margin-top: 10px;
+      font-size: 1rem;
+      display: flex;
+      gap: 20px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 80px);
+      grid-gap: 15px;
+      margin-top: 20px;
+    }
+    .card {
+      width: 80px;
+      height: 80px;
+      background-color: #ffffff;
+      border-radius: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 40px;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: transform 0.6s ease, background-color 0.6s ease, color 0.6s ease;
+      user-select: none;
+    }
+    .card.flipped {
+      background-color: #2563eb;
+      color: #ffffff;
+      transform: rotateY(180deg);
+    }
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      color: white;
+      font-size: 1.5rem;
+      text-align: center;
+      z-index: 10;
+    }
+    .overlay button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      cursor: pointer;
+      border: 2px solid white;
+      border-radius: 8px;
+      background: transparent;
+      color: white;
+      transition: 0.3s;
+    }
+    .overlay button:hover {
+      background: white;
+      color: #2563eb;
+    }
+  </style>
+</head>
+<body>
+
+<div class="game-container">
+  <h1>Memory Card Game - 2 Player</h1>
+  <div class="turn-info" id="turnInfo"></div>
+  <div class="scores">
+    <div id="score1"></div>
+    <div id="score2"></div>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="overlay" id="winScreen">
+  <p id="winMessage">🎉 Game Over! 🎉</p>
+  <p id="finalTries"></p>
+  <button onclick="startGame()">Play Again</button>
+</div>
+
+<script>
+  let player1Name = prompt('Enter Player 1 name:') || 'Player 1';
+  let player2Name = prompt('Enter Player 2 name:') || 'Player 2';
+
+  const emojis = ['🍎','🍌','🍇','🍉','🍓','🍒','🍍','🥝'];
+  let cardsArray = [];
+  let firstCard = null;
+  let secondCard = null;
+  let lockBoard = false;
+  let currentPlayer = 1;
+  let tries = 0;
+  let player1Matches = 0;
+  let player2Matches = 0;
+
+  const grid = document.getElementById('grid');
+  const winScreen = document.getElementById('winScreen');
+  const turnInfo = document.getElementById('turnInfo');
+  const score1El = document.getElementById('score1');
+  const score2El = document.getElementById('score2');
+  const winMessageEl = document.getElementById('winMessage');
+  const finalTriesEl = document.getElementById('finalTries');
+
+  function shuffle(array) {
+    return array.sort(() => Math.random() - 0.5);
+  }
+
+  function createCards() {
+    cardsArray = [...emojis, ...emojis];
+    cardsArray = shuffle(cardsArray);
+    grid.innerHTML = '';
+    cardsArray.forEach(emoji => {
+      const card = document.createElement('div');
+      card.classList.add('card');
+      card.dataset.emoji = emoji;
+      card.addEventListener('click', flipCard);
+      grid.appendChild(card);
+    });
+  }
+
+  function flipCard() {
+    if (lockBoard || this.classList.contains('flipped')) return;
+
+    this.classList.add('flipped');
+    this.textContent = this.dataset.emoji;
+
+    if (!firstCard) {
+      firstCard = this;
+    } else {
+      secondCard = this;
+      lockBoard = true;
+      setTimeout(checkMatch, 1000);
+    }
+  }
+
+  function checkMatch() {
+    tries++;
+    if (firstCard.dataset.emoji === secondCard.dataset.emoji) {
+      firstCard.removeEventListener('click', flipCard);
+      secondCard.removeEventListener('click', flipCard);
+      if (currentPlayer === 1) {
+        player1Matches++;
+      } else {
+        player2Matches++;
+      }
+    } else {
+      firstCard.classList.remove('flipped');
+      secondCard.classList.remove('flipped');
+      firstCard.textContent = '';
+      secondCard.textContent = '';
+      currentPlayer = currentPlayer === 1 ? 2 : 1;
+    }
+    firstCard = null;
+    secondCard = null;
+    lockBoard = false;
+    updateUI();
+    checkWin();
+  }
+
+  function updateUI() {
+    turnInfo.textContent = `Turn: ${currentPlayer === 1 ? player1Name : player2Name}`;
+    score1El.textContent = `${player1Name} Matches: ${player1Matches}`;
+    score2El.textContent = `${player2Name} Matches: ${player2Matches}`;
+  }
+
+  function checkWin() {
+    const allFlipped = document.querySelectorAll('.card.flipped');
+    if (allFlipped.length === cardsArray.length) {
+      winScreen.style.display = 'flex';
+      finalTriesEl.textContent = `Total Tries: ${tries}`;
+      if (player1Matches > player2Matches) {
+        winMessageEl.textContent = `🎉 ${player1Name} Wins! 🎉`;
+      } else if (player2Matches > player1Matches) {
+        winMessageEl.textContent = `🎉 ${player2Name} Wins! 🎉`;
+      } else {
+        winMessageEl.textContent = `🎉 It's a Tie! 🎉`;
+      }
+    }
+  }
+
+  function startGame() {
+    winScreen.style.display = 'none';
+    firstCard = null;
+    secondCard = null;
+    lockBoard = false;
+    currentPlayer = 1;
+    tries = 0;
+    player1Matches = 0;
+    player2Matches = 0;
+    updateUI();
+    createCards();
+  }
+
+  startGame();
+</script>
+
+</body>
+</html>
